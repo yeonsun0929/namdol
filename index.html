@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>✨ 잘생긴 남돌 모음집</title>
+  <!-- Tailwind CSS & Google Fonts (Pretendard) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <style>
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      background-color: #f8fafc;
+    }
+    .glass-header {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .card-hover {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .card-hover:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 20px 25px -5px rgba(79, 70, 229, 0.1), 0 8px 10px -6px rgba(79, 70, 229, 0.1);
+    }
+    /* 커스텀 스크롤바 */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+  <!-- 상단 네비게이션 바 -->
+  <header class="glass-header sticky top-0 z-40 border-b border-slate-200/80">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <span class="text-2xl">💎</span>
+        <h1 class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
+          잘생긴 남돌 모음집
+        </h1>
+      </div>
+      
+      <div class="flex items-center gap-3">
+        <!-- 검색창 -->
+        <div class="relative hidden sm:block">
+          <input type="text" id="searchInput" onkeyup="filterIdols()" placeholder="이름 또는 그룹 검색..." 
+                 class="pl-9 pr-4 py-1.5 bg-slate-100 border border-transparent focus:border-indigo-400 focus:bg-white rounded-full text-sm outline-none transition-all w-48 focus:w-64">
+          <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+        </div>
+
+        <!-- 등록 모달 열기 버튼 -->
+        <button onclick="openModal()" 
+                class="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-sm font-semibold px-4 py-2 rounded-full shadow-sm shadow-indigo-200 transition-all flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+          </svg>
+          <span>남돌 등록하기</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 모바일 검색창 & 필터 바 -->
+  <div class="max-w-6xl mx-auto w-full px-4 sm:px-6 pt-6">
+    <div class="sm:hidden mb-4">
+      <input type="text" id="mobileSearchInput" onkeyup="syncSearch(this.value)" placeholder="이름 또는 그룹명으로 검색해보세요..." 
+             class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-500">
+    </div>
+
+    <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200/70">
+      <p class="text-sm text-slate-500">
+        총 <span id="totalCount" class="font-bold text-indigo-600">0</span>명의 비주얼 멤버가 등록되어 있습니다.
+      </p>
+      
+      <div class="flex items-center gap-2 text-sm">
+        <button onclick="sortIdols('latest')" id="sortLatest" class="px-3 py-1 rounded-lg font-medium bg-indigo-50 text-indigo-700 transition">최신순</button>
+        <button onclick="sortIdols('likes')" id="sortLikes" class="px-3 py-1 rounded-lg font-medium text-slate-500 hover:bg-slate-100 transition">인기(추천)순</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 메인 갤러리 그리드 -->
+  <main class="max-w-6xl mx-auto w-full px-4 sm:px-6 py-8 flex-grow">
+    <!-- 로딩 스피너 -->
+    <div id="loadingState" class="flex flex-col items-center justify-center py-20">
+      <div class="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+      <p class="text-slate-500 text-sm font-medium">스프레드시트에서 데이터를 불러오는 중입니다...</p>
+    </div>
+
+    <!-- 데이터 없음 안내 -->
+    <div id="emptyState" class="hidden text-center py-20 bg-white rounded-3xl border border-dashed border-slate-300">
+      <div class="text-4xl mb-3">📸</div>
+      <h3 class="text-lg font-bold text-slate-700 mb-1">아직 등록된 남돌이 없어요!</h3>
+      <p class="text-slate-500 text-sm mb-5">우측 상단의 '남돌 등록하기' 버튼을 눌러 첫 번째 주인공을 추가해보세요.</p>
+      <button onclick="openModal()" class="bg-indigo-600 text-white text-sm font-medium px-5 py-2.5 rounded-full hover:bg-indigo-700 transition">
+        지금 등록하기
+      </button>
+    </div>
+
+    <!-- 카드 목록 컨테이너 -->
+    <div id="idolGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 hidden">
+      <!-- 자바스크립트로 카드가 동적 렌더링 됩니다 -->
+    </div>
+  </main>
+
+  <!-- 푸터 -->
+  <footer class="border-t border-slate-200/80 bg-white py-6 mt-12">
+    <div class="max-w-6xl mx-auto px-4 text-center text-xs text-slate-400">
+      모든 데이터는 연결된 Google Sheets에 실시간으로 저장됩니다.
+    </div>
+  </footer>
+
+  <!-- 등록 모달 (Modal) -->
+  <div id="registerModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl transform transition-all">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <span>✨</span> 새로운 남돌 추가
+        </h2>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <form id="idolForm" onsubmit="submitForm(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">아이돌 이름 *</label>
+          <input type="text" id="inputName" required placeholder="예: 차은우" 
+                 class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-500 outline-none transition">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">소속 그룹 *</label>
+          <input type="text" id="inputGroup" required placeholder="예: 아스트로 (ASTRO)" 
+                 class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-500 outline-none transition">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">사진 이미지 URL</label>
+          <input type="url" id="inputImage" placeholder="https://... (이미지 주소 복사 후 붙여넣기)" 
+                 class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-500 outline-none transition">
+          <p class="text-[11px] text-slate-400 mt-1">비워두면 기본 이미지가 자동으로 적용됩니다.</p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">입덕 포인트 / 한줄평</label>
+          <textarea id="inputComment" rows="3" placeholder="이 멤버만의 매력 포인트를 적어주세요!" 
+                    class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-500 outline-none transition resize-none"></textarea>
+        </div>
+
+        <div class="pt-2 flex gap-3">
+          <button type="button" onclick="closeModal()" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition">
+            취소
+          </button>
+          <button type="submit" id="submitBtn" class="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 shadow-md shadow-indigo-200 transition flex items-center justify-center gap-2">
+            <span>시트에 저장하기</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 커스텀 토스트 알림 (alert 대체) -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5">
+    <span id="toastIcon">✅</span>
+    <span id="toastMessage">알림 메시지</span>
+  </div>
+
+  <script>
+    let allIdols = [];
+    let currentSort = 'latest';
+
+    // 페이지 로드 시 데이터 불러오기
+    window.addEventListener('DOMContentLoaded', () => {
+      fetchIdols();
+    });
+
+    // 서버(Code.gs)에서 목록 호출
+    function fetchIdols() {
+      google.script.run
+        .withSuccessHandler((data) => {
+          allIdols = data || [];
+          document.getElementById('loadingState').classList.add('hidden');
+          renderIdols(allIdols);
+        })
+        .withFailureHandler((err) => {
+          document.getElementById('loadingState').classList.add('hidden');
+          showToast('데이터 로드 실패: ' + err.message, '❌');
+        })
+        .getIdolList();
+    }
+
+    // 카드 목록 렌더링
+    function renderIdols(list) {
+      const grid = document.getElementById('idolGrid');
+      const emptyState = document.getElementById('emptyState');
+      const totalCount = document.getElementById('totalCount');
+
+      totalCount.textContent = list.length;
+
+      if (list.length === 0) {
+        grid.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      grid.classList.remove('hidden');
+      grid.innerHTML = '';
+
+      list.forEach((idol) => {
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm card-hover flex flex-col';
+        
+        // 이미지 로드 실패 시 대체 이미지 처리
+        const fallbackImg = 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=600&q=80';
+        
+        card.innerHTML = `
+          <div class="relative aspect-[4/5] bg-slate-100 overflow-hidden group">
+            <img src="${escapeHtml(idol.imageUrl)}" 
+                 onerror="this.onerror=null; this.src='${fallbackImg}';" 
+                 alt="${escapeHtml(idol.name)}" 
+                 class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-80"></div>
+            
+            <div class="absolute top-3 left-3">
+              <span class="px-3 py-1 bg-white/90 backdrop-blur-md text-indigo-700 text-xs font-bold rounded-full shadow-sm">
+                ${escapeHtml(idol.group)}
+              </span>
+            </div>
+
+            <div class="absolute bottom-4 left-4 right-4 text-white">
+              <h3 class="text-xl font-bold tracking-tight">${escapeHtml(idol.name)}</h3>
+              <p class="text-[11px] text-slate-300 mt-0.5">${escapeHtml(idol.createdAt)} 등록</p>
+            </div>
+          </div>
+
+          <div class="p-5 flex-grow flex flex-col justify-between">
+            <p class="text-sm text-slate-600 leading-relaxed line-clamp-3 mb-4">
+              "${escapeHtml(idol.comment)}"
+            </p>
+
+            <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <span class="text-xs text-slate-400 font-medium">비주얼 추천</span>
+              <button onclick="handleLike(${idol.rowIndex}, this)" 
+                      class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold transition active:scale-90">
+                <span>❤️</span>
+                <span class="like-count">${idol.likes}</span>
+              </button>
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    // 폼 제출 처리
+    function submitForm(e) {
+      e.preventDefault();
+      const submitBtn = document.getElementById('submitBtn');
+      const originalText = submitBtn.innerHTML;
+      
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<div class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></div><span>저장 중...</span>`;
+
+      const formData = {
+        name: document.getElementById('inputName').value,
+        group: document.getElementById('inputGroup').value,
+        imageUrl: document.getElementById('inputImage').value,
+        comment: document.getElementById('inputComment').value
+      };
+
+      google.script.run
+        .withSuccessHandler((res) => {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalText;
+
+          if (res.success) {
+            closeModal();
+            document.getElementById('idolForm').reset();
+            allIdols = res.list;
+            applyCurrentSortAndFilter();
+            showToast(res.message, '🎉');
+          } else {
+            showToast(res.message, '⚠️');
+          }
+        })
+        .withFailureHandler((err) => {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalText;
+          showToast('저장 오류: ' + err.message, '❌');
+        })
+        .addIdol(formData);
+    }
+
+    // 좋아요(추천) 버튼 클릭 처리
+    function handleLike(rowIndex, btnElement) {
+      const countSpan = btnElement.querySelector('.like-count');
+      const currentVal = parseInt(countSpan.textContent, 10);
+      
+      // 낙관적 UI 업데이트 (즉시 숫자 증가 표시)
+      countSpan.textContent = currentVal + 1;
+      btnElement.disabled = true;
+
+      google.script.run
+        .withSuccessHandler((res) => {
+          btnElement.disabled = false;
+          if (res.success) {
+            countSpan.textContent = res.likes;
+            // 로컬 배열 데이터도 동기화
+            const target = allIdols.find(item => item.rowIndex === rowIndex);
+            if (target) target.likes = res.likes;
+          }
+        })
+        .withFailureHandler(() => {
+          btnElement.disabled = false;
+          countSpan.textContent = currentVal;
+        })
+        .incrementLike(rowIndex);
+    }
+
+    // 검색 필터링
+    function syncSearch(val) {
+      document.getElementById('searchInput').value = val;
+      filterIdols();
+    }
+
+    function filterIdols() {
+      applyCurrentSortAndFilter();
+    }
+
+    // 정렬 변경
+    function sortIdols(type) {
+      currentSort = type;
+      const btnLatest = document.getElementById('sortLatest');
+      const btnLikes = document.getElementById('sortLikes');
+
+      if (type === 'latest') {
+        btnLatest.className = 'px-3 py-1 rounded-lg font-medium bg-indigo-50 text-indigo-700 transition';
+        btnLikes.className = 'px-3 py-1 rounded-lg font-medium text-slate-500 hover:bg-slate-100 transition';
+      } else {
+        btnLikes.className = 'px-3 py-1 rounded-lg font-medium bg-indigo-50 text-indigo-700 transition';
+        btnLatest.className = 'px-3 py-1 rounded-lg font-medium text-slate-500 hover:bg-slate-100 transition';
+      }
+      applyCurrentSortAndFilter();
+    }
+
+    function applyCurrentSortAndFilter() {
+      const keyword = document.getElementById('searchInput').value.toLowerCase().trim();
+      
+      let filtered = allIdols.filter(idol => 
+        idol.name.toLowerCase().includes(keyword) || 
+        idol.group.toLowerCase().includes(keyword) ||
+        idol.comment.toLowerCase().includes(keyword)
+      );
+
+      if (currentSort === 'likes') {
+        filtered.sort((a, b) => b.likes - a.likes);
+      } else {
+        // 최신순 (rowIndex 내림차순)
+        filtered.sort((a, b) => b.rowIndex - a.rowIndex);
+      }
+
+      renderIdols(filtered);
+    }
+
+    // 모달 제어
+    function openModal() {
+      const modal = document.getElementById('registerModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      document.getElementById('inputName').focus();
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('registerModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    // 토스트 알림 표시
+    function showToast(msg, icon = '✅') {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastMessage').textContent = msg;
+      document.getElementById('toastIcon').textContent = icon;
+      
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 3000);
+    }
+
+    // XSS 방지용 이스케이프 함수
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+  </script>
+</body>
+</html>
